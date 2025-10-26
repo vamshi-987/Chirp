@@ -1,7 +1,7 @@
 import React, { useContext, useEffect } from 'react'
 import { ToastContainer,toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Login from './pages/login/Login';
+import Login from './pages/Login/Login';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from './config/firebase';
 import { Route, Routes, useNavigate } from 'react-router-dom';
