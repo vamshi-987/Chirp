@@ -1,0 +1,15 @@
+# Local development dependencies. Currently just Redis — MongoDB is Atlas (cloud).
+# Start it with:  docker compose up -d
+# Stop it with:   docker compose down
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: chat-app-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
