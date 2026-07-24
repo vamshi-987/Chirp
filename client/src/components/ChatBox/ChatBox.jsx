@@ -11,6 +11,8 @@ const ChatBox = () => {
 
   const { userData, messagesId, chatUser, messages, setMessages, chatVisible, setChatVisible } = useContext(AppContext);
   const [input, setInput] = useState("");
+  const [pendingImage, setPendingImage] = useState(null);
+  const [sending, setSending] = useState(false);
   const scrollEnd = useRef();
 
   const fetchMessages = async () => {
@@ -24,14 +26,27 @@ const ChatBox = () => {
   };
 
   const sendMessage = async () => {
+    if (sending || !messagesId) return;
+    const text = input.trim();
+    // Nothing to send unless there's text and/or a chosen image.
+    if (!text && !pendingImage) return;
+    setSending(true);
     try {
-      if (input && messagesId) {
-        await api.post(`/messages/${messagesId}`, { text: input });
-        setInput("");
-        await fetchMessages();
+      // Upload and send the selected image only now (on send), not on selection.
+      if (pendingImage) {
+        const fileUrl = await upload(pendingImage);
+        if (fileUrl) await api.post(`/messages/${messagesId}`, { image: fileUrl });
+        setPendingImage(null);
       }
+      if (text) {
+        await api.post(`/messages/${messagesId}`, { text });
+        setInput("");
+      }
+      await fetchMessages();
     } catch (error) {
       toast.error(error.message)
+    } finally {
+      setSending(false);
     }
   }
 
@@ -44,20 +59,11 @@ const ChatBox = () => {
     return `${hour}:${minute} ${suffix}`;
   }
 
-  const sendImage = async (e) => {
-    try {
-      const file = e.target.files[0];
-      if (!file || !messagesId) return;
-      const fileUrl = await upload(file);
-      if (fileUrl) {
-        await api.post(`/messages/${messagesId}`, { image: fileUrl });
-        await fetchMessages();
-      }
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      e.target.value = "";
-    }
+  // Just stage the chosen image for preview; it's uploaded/sent on "send".
+  const onSelectImage = (e) => {
+    const file = e.target.files[0];
+    if (file) setPendingImage(file);
+    e.target.value = "";
   }
 
   useEffect(() => {
@@ -109,17 +115,23 @@ const ChatBox = () => {
           })
         }
       </div>
+      {pendingImage &&
+        <div className="chat-preview">
+          <img className="chat-preview-img" src={URL.createObjectURL(pendingImage)} alt="" />
+          <button type="button" className="chat-preview-clear" title="Remove image" onClick={() => setPendingImage(null)}>×</button>
+        </div>}
       <div className="chat-input">
         <input onKeyDown={(e) => e.key === "Enter" ? sendMessage() : null} onChange={(e) => setInput(e.target.value)} value={input} type="text" placeholder='Send a message' />
-        <input onChange={sendImage} type="file" id='image' accept="image/png, image/jpeg" hidden />
+        <input onChange={onSelectImage} type="file" id='image' accept="image/png, image/jpeg" hidden />
         <label htmlFor="image">
           <img src={assets.gallery_icon} alt="" />
         </label>
-        <img onClick={sendMessage} src={assets.send_button} alt="" />
+        <img className={sending ? "send-disabled" : ""} onClick={sendMessage} src={assets.send_button} alt="" />
       </div>
     </div>
   ) : <div className={`chat-welcome ${chatVisible ? "" : "hidden"}`}>
     <img src={assets.logo_icon} alt=''/>
+    <h2 className='chat-welcome-brand'>Chirp</h2>
     <p>Chat anytime, anywhere</p>
   </div>
 }

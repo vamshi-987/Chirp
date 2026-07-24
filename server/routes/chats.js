@@ -1,14 +1,16 @@
 import express from "express";
+import mongoose from "mongoose";
 import Chat from "../models/Chat.js";
 import Message from "../models/Message.js";
 import User from "../models/User.js";
 import requireAuth from "../middleware/auth.js";
+import asyncHandler from "../middleware/asyncHandler.js";
 import { emitChatsUpdate } from "../socket.js";
 
 const router = express.Router();
 
 // Get the current user's chat list, each entry populated with the other user's data.
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", requireAuth, asyncHandler(async (req, res) => {
   const chat = await Chat.findOne({ userId: req.userId });
   const items = chat?.chatsData || [];
 
@@ -30,12 +32,12 @@ router.get("/", requireAuth, async (req, res) => {
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
   res.json({ chatsData: data });
-});
+}));
 
 // Start a chat with another user: create a Message doc and add it to both chat lists.
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, asyncHandler(async (req, res) => {
   const rId = String(req.body.rId || "");
-  if (!rId || rId === req.userId) {
+  if (!rId || rId === req.userId || !mongoose.isValidObjectId(rId)) {
     return res.status(400).json({ message: "Invalid user" });
   }
 
@@ -59,23 +61,24 @@ router.post("/", requireAuth, async (req, res) => {
     });
   }
 
-  const message = await Message.create({ messages: [] });
-  const messageId = message._id.toString();
+  // Reuse the existing conversation between these two users if there is one
+  // (e.g. the current user deleted it earlier — deletes are one-sided), else
+  // create a fresh one. The chat entry is added ONLY to the initiator's list;
+  // the other user doesn't see the conversation until the first message is
+  // actually sent (materialised in routes/messages.js).
+  let conversation = await Message.findOne({ participants: { $all: [req.userId, rId] } });
+  if (!conversation) {
+    conversation = await Message.create({ participants: [req.userId, rId], messages: [] });
+  }
+  const messageId = conversation._id.toString();
   const now = Date.now();
 
-  // Push a chat entry pointing at the *other* participant for each side.
-  await Chat.updateOne(
-    { userId: rId },
-    { $push: { chatsData: { messageId, lastMessage: "", rId: req.userId, updatedAt: now, messageSeen: true } } },
-    { upsert: true }
-  );
   await Chat.updateOne(
     { userId: req.userId },
     { $push: { chatsData: { messageId, lastMessage: "", rId, updatedAt: now, messageSeen: true } } },
     { upsert: true }
   );
 
-  emitChatsUpdate(rId);
   emitChatsUpdate(req.userId);
 
   res.json({
@@ -88,16 +91,44 @@ router.post("/", requireAuth, async (req, res) => {
       userData: other.toPublic(),
     },
   });
-});
+}));
+
+// Delete a conversation for the current user only. This removes the chat entry
+// from *this* user's list; the shared Message doc and the other participant's
+// entry are left intact, so the other user still sees the full conversation.
+router.delete("/:messageId", requireAuth, asyncHandler(async (req, res) => {
+  const messageId = String(req.params.messageId || "");
+  if (!messageId) return res.status(400).json({ message: "Invalid conversation" });
+
+  await Chat.updateOne(
+    { userId: req.userId },
+    { $pull: { chatsData: { messageId } } }
+  );
+
+  // Hide the existing history from this user only. If they start the chat again
+  // later, messages sent before now stay hidden for them, while the other user
+  // keeps the full conversation.
+  // Scope the clear to conversations the user actually belongs to, so a caller
+  // can't stamp clearedAt onto arbitrary Message docs by guessing ids.
+  if (mongoose.isValidObjectId(messageId)) {
+    await Message.updateOne(
+      { _id: messageId, participants: req.userId },
+      { $set: { [`clearedAt.${req.userId}`]: Date.now() } }
+    );
+  }
+
+  emitChatsUpdate(req.userId);
+  res.json({ ok: true });
+}));
 
 // Mark a conversation as seen for the current user.
-router.post("/seen", requireAuth, async (req, res) => {
+router.post("/seen", requireAuth, asyncHandler(async (req, res) => {
   const messageId = String(req.body.messageId || "");
   await Chat.updateOne(
     { userId: req.userId, "chatsData.messageId": messageId },
     { $set: { "chatsData.$.messageSeen": true } }
   );
   res.json({ ok: true });
-});
+}));
 
 export default router;

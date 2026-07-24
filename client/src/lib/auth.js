@@ -50,6 +50,20 @@ const logout = () => {
   window.location.href = "/";
 };
 
+// Permanently delete the current user's account, then reset back to login.
+const deleteAccount = async () => {
+  try {
+    await api.delete("/users/me");
+    clearToken();
+    disconnectSocket();
+    window.location.href = "/";
+    return true;
+  } catch (error) {
+    toast.error(error.message);
+    return false;
+  }
+};
+
 // Forgot password: request a reset OTP.
 const resetPass = async (email) => {
   if (!email) {
@@ -78,4 +92,4 @@ const resetPasswordConfirm = async (email, otp, newPassword) => {
   }
 };
 
-export { signup, verifyOtp, login, logout, resetPass, resetPasswordConfirm };
+export { signup, verifyOtp, login, logout, deleteAccount, resetPass, resetPasswordConfirm };

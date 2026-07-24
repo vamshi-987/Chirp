@@ -40,6 +40,26 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
+// Centralised error handler (registered last, after every route). Any error
+// forwarded via next(err) — see middleware/asyncHandler.js — lands here and
+// returns a clean JSON response instead of leaving the request hanging or
+// crashing the process.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error(`${req.method} ${req.originalUrl} ->`, err);
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({ message: err.message || "Server error" });
+});
+
+// Last-resort safety net: never let a stray rejection/exception kill the
+// server. These should be rare now that route handlers forward errors properly.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
+});
+
 initSocket(server);
 
 const PORT = process.env.PORT || 5000;

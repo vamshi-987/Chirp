@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   name: { type: String, default: "" },
   avatar: { type: String, default: "" },
-  bio: { type: String, default: "Hey, There i am using chat app" },
+  bio: { type: String, default: "Hey, There i am using Chirp" },
   lastSeen: { type: Number, default: () => Date.now() },
 });
 

@@ -1,4 +1,6 @@
 import React, { useContext, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import './Login.css'
 import assets from '../../assets/assets';
 import { signup, login, verifyOtp, resetPass, resetPasswordConfirm } from '../../lib/auth';
@@ -12,6 +14,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { loadUserData } = useContext(AppContext);
@@ -19,6 +22,11 @@ const Login = () => {
   const onSubmitHandler = async (event) => {
     event.preventDefault();
     if (loading) return;
+    // Block signup until the user agrees to the terms & privacy policy.
+    if (currState === "Sign up" && !agreed) {
+      toast.error("Please agree to the terms of use & privacy policy to sign up.");
+      return;
+    }
     setLoading(true);
     try {
       if (currState === "Sign up") {
@@ -83,12 +91,22 @@ const Login = () => {
         {(currState === "Sign up" || currState === "Login" || currState === "Reset") &&
           <input onChange={(e) => setPassword(e.target.value)} value={password} className='form-input' type="password" placeholder={currState === "Reset" ? "New password" : "password"} required />}
 
-        <button type='submit' disabled={loading}>{loading ? "Please wait..." : buttonLabel}</button>
+        <button type='submit' disabled={loading || (currState === "Sign up" && !agreed)}>{loading ? "Please wait..." : buttonLabel}</button>
 
         {currState === "Sign up" &&
           <div className='login-term'>
-            <input type="checkbox" />
-            <p>Agree to the terms of use & privacy policy.</p>
+            <input
+              type="checkbox"
+              id="agree-terms"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+            />
+            <p>
+              I agree to the{' '}
+              <Link to="/terms" target="_blank" rel="noopener noreferrer">terms of use</Link>
+              {' '}&amp;{' '}
+              <Link to="/privacy" target="_blank" rel="noopener noreferrer">privacy policy</Link>.
+            </p>
           </div>}
 
         <div className='login-forgot'>

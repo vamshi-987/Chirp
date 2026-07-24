@@ -64,7 +64,18 @@ router.post("/signup", async (req, res) => {
       OTP_TTL()
     );
 
-    await sendOtpEmail({ to: email, otp, purpose: "verify" });
+    try {
+      await sendOtpEmail({ to: email, otp, purpose: "verify" });
+    } catch (mailError) {
+      // Delivery failed (SMTP not configured, provider rejected, etc.). The OTP
+      // is already stored in Redis and still valid, so don't fail signup. Only
+      // log the actual code outside production — printing OTPs to production
+      // logs would let anyone with log access complete signups.
+      console.error(`OTP email to ${email} failed:`, mailError.message);
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[OTP FALLBACK] verify code for ${email}: ${otp}`);
+      }
+    }
 
     return res.json({ pending: true, email, message: "Verification code sent to your email" });
   } catch (error) {
@@ -162,7 +173,17 @@ router.post("/forgot-password", async (req, res) => {
     if (user) {
       const otp = generateOtp();
       await redis.set(resetKey(email), JSON.stringify({ otp, attempts: 0 }), "EX", OTP_TTL());
-      await sendOtpEmail({ to: email, otp, purpose: "reset" });
+      try {
+        await sendOtpEmail({ to: email, otp, purpose: "reset" });
+      } catch (mailError) {
+        // Same fallback as signup: don't fail the request if email delivery
+        // breaks. Never print reset codes to production logs — that would be a
+        // direct account-takeover path for anyone with log access.
+        console.error(`Reset OTP email to ${email} failed:`, mailError.message);
+        if (process.env.NODE_ENV !== "production") {
+          console.log(`[OTP FALLBACK] reset code for ${email}: ${otp}`);
+        }
+      }
     }
     return res.json({ message: "If that email exists, a reset code has been sent" });
   } catch (error) {

@@ -1,7 +1,7 @@
 import { createContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { api, getToken } from "../lib/api";
+import { api, getToken, clearToken } from "../lib/api";
 import { connectSocket, getSocket } from "../lib/socket";
 
 export const AppContext = createContext();
@@ -46,6 +46,13 @@ const AppContextProvider = (props) => {
       else navigate("/profile");
       return user;
     } catch (error) {
+      // Stale/invalid session (e.g. a token pointing at a user that no longer
+      // exists): clear it and return to login instead of looping on the error.
+      if (error.status === 401 || error.status === 404) {
+        clearToken();
+        navigate("/");
+        return null;
+      }
       toast.error(error.message);
       return null;
     }

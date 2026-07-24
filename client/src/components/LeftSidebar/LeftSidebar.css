@@ -51,6 +51,64 @@
     cursor: pointer;
     font-size: 14px;
 }
+.sub-menu p.menu-danger{
+    color: #e0245e;
+}
+
+/* Delete-account confirmation modal */
+.confirm-overlay{
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+.confirm-box{
+    background: #ffffff;
+    color: #1a1a1a;
+    border-radius: 10px;
+    padding: 24px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+.confirm-box h3{
+    margin: 0 0 10px;
+    font-size: 18px;
+}
+.confirm-box p{
+    margin: 0 0 20px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #555;
+}
+.confirm-actions{
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.confirm-actions button{
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+}
+.confirm-actions button:disabled{
+    opacity: 0.6;
+    cursor: default;
+}
+.confirm-cancel{
+    background: #eaeaea;
+    color: #333;
+}
+.confirm-delete{
+    background: #e0245e;
+    color: #ffffff;
+}
 .menu:hover .sub-menu {
     display: block;
 }
@@ -62,6 +120,12 @@
     gap: 10px;
     padding: 10px 12px;
     margin-top: 20px;
+    cursor: text;
+}
+
+.ls-search input {
+    flex: 1;
+    min-width: 0;
 }
 
 .ls-search img {
@@ -105,6 +169,30 @@
 .friends div {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.delete-chat {
+    background: transparent;
+    border: none;
+    color: #9f9f9f;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+
+.friends:hover .delete-chat {
+    opacity: 1;
+}
+
+.delete-chat:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .friends span {
